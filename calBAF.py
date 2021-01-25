@@ -43,6 +43,7 @@ def main():
             '''
             # max depth = 8000X, mapQ = 30, baseQ = 10
             querybase = pileupcol.get_query_sequences(mark_matches=False,mark_ends=False,add_indels=False)
+            #print(querybase)
             col = pileupcol.reference_pos + 1 # 1-based
             t_chr = t.split(":")[0]
             reg = t_chr + ':' + str(col) + '-' + str(col) # chr1:2-2
