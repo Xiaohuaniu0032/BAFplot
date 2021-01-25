@@ -2,39 +2,20 @@ import pysam
 import sys
 import argparse
 
-class Options:
-    def __init__(self):
-        self.parser =  argparse.ArgumentParser("Calculate VAF in Samtools mpileup Way")
-        self.parser.add_argument('-bam',help="bam file",dest="bam")
-        self.parser.add_argument('-bed',help="bed file",dest="bed")
-        self.parser.add_argument('-fa',help="fasta file",dest="fasta",default="/data1/database/b37/human_g1k_v37.fasta")
-        self.parser.add_argument('-outfile',help="output file",dest="outfile")
-
-        args = self.parser.parse_args()
+def parse_args():
+        AP =  argparse.ArgumentParser("Calculate VAF in Samtools mpileup Way")
+        AP.add_argument('-bam',help="bam file",dest="bam")
+        AP.add_argument('-bed',help="bed file",dest="bed")
+        AP.add_argument('-d',help='max depth',dest='depth',default=8000)
+        AP.add_argument('-mq',help='map quality',dest='mapq',default=30)
+        AP.add_argument('-bq',help='base quality',dest='baseq',default=10)
+        AP.add_argument('-fa',help="fasta file",dest="fasta",default="/data1/database/b37/human_g1k_v37.fasta")
+        AP.add_argument('-outfile',help="output file",dest="outfile")
         
-        if args.bam:
-            self.bam = args.bam
-        else:
-            self.parser.error("BAM file not supplied")
-
-        if args.bed:
-            self.bed = args.bed
-        else:
-            self.parser.error("BED file not supplied")
-
-        if args.fasta:
-            self.fasta = args.fasta
-        else:
-            self.parser.error("Fasta file not supplied")
-
-        if args.outfile:
-            self.outfile = args.outfile
-        else:
-            self.parser.error("Output file not supplied")
-
+        return AP.parse_args()
 
 def main():
-    options = Options()
+    options = parse_args()
     pysam_sam = pysam.AlignmentFile(options.bam,"rb")
     pysam_fa = pysam.FastaFile(options.fasta)
 
@@ -56,16 +37,12 @@ def main():
     of.write('\n')
 
     for t in target:
-        for pileupcol in pysam_sam.pileup(region=t,reference=options.fasta,truncate=True,stepper="samtools",fastafile=pysam_fa,max_depth=8000,min_base_quality=10,min_mapping_quality=10): # return PileupColumn Obj
+        for pileupcol in pysam_sam.pileup(region=t,reference=options.fasta,truncate=True,stepper="samtools",fastafile=pysam_fa,max_depth=options.depth,min_base_quality=options.baseq,min_mapping_quality=options.mapq): # return PileupColumn Obj
             '''
             Note: 'all' reads which overlap the region are returned. The first base returned will be the first base of the first read ‘not’ necessarily the first base of the region used in the query. you need to specifiy the 'truncate' param
             '''
-            #print(pileupcol)
-            # max depth = 8000X, mapQ = 10, baseQ = 10
-            #print("coverage at base %s = %s" % (pileupcol.pos, pileupcol.n))
+            # max depth = 8000X, mapQ = 30, baseQ = 10
             querybase = pileupcol.get_query_sequences(mark_matches=False,mark_ends=False,add_indels=False)
-            #print(querybase)
-            #depth = pileupcol.nsegments # number of reads mapping to this column
             col = pileupcol.reference_pos + 1 # 1-based
             t_chr = t.split(":")[0]
             reg = t_chr + ':' + str(col) + '-' + str(col) # chr1:2-2
@@ -84,11 +61,9 @@ def main():
             if all_n > 0:
                 alt_freq = round(alt_n/all_n,3)
             else:
-                alt_freq = "NA"
-
-            if alt_freq == "NA":
-                pass
-
+                # skip zero depth pos
+                continue
+               
             val = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (t_chr,col,ref_base,ref_n,alt_n,all_n,alt_freq)
             of.write(val)
 
