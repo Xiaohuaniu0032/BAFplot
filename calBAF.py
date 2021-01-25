@@ -1,16 +1,19 @@
 import pysam
 import sys
 import argparse
+import os
 
 def parse_args():
         AP =  argparse.ArgumentParser("Calculate VAF in Samtools mpileup Way")
         AP.add_argument('-bam',help="bam file",dest="bam")
         AP.add_argument('-bed',help="bed file",dest="bed")
         AP.add_argument('-d',help='max depth',dest='depth',default=8000)
+        AP.add_argument('-n',help='samplel name',dest='name')
         AP.add_argument('-mq',help='map quality',dest='mapq',default=30)
         AP.add_argument('-bq',help='base quality',dest='baseq',default=10)
         AP.add_argument('-fa',help="fasta file",dest="fasta",default="/data1/database/b37/human_g1k_v37.fasta")
-        AP.add_argument('-outfile',help="output file",dest="outfile")
+        AP.add_argument('-snp',help='hg19 EAS SNP file from Annovar',dest='snp',default='/data1/software/annovar/humandb/hg19_EAS.sites.2014_10.txt')
+        AP.add_argument('-od',help="output dir",dest="outdir")
         
         return AP.parse_args()
 
@@ -30,7 +33,8 @@ def main():
     #print(target)
 
     # output file
-    of = open(options.outfile,"w")
+    outfile = "%s/%s.BAF.txt" % (options.outdir,options.name)
+    of = open(outfile,'w')
     h = ['chr','pos','ref_base','ref_n','alt_n','all_n','alt_freq']
     hh = '\t'.join(h)
     of.write(hh)
@@ -67,6 +71,15 @@ def main():
                
             val = "%s\t%s\t%s\t%s\t%s\t%s\t%s\n" % (t_chr,col,ref_base,ref_n,alt_n,all_n,alt_freq)
             of.write(val)
+    
+    of.close()
+
+    # output SNP info
+    bin_dir = os.path.split(os.path.realpath(__file__))[0]
+    snp_file = "%s/%s.BAF.HetPos.txt" % (options.outdir,options.name)
+    cmd = "perl %s/bin/get_het_snp.pl %s %s %s" % (bin_dir,options.snp,outfile,snp_file)
+    print("CMD is: %s" % (cmd))
+    os.system(cmd)
 
 
 if __name__ == "__main__":
